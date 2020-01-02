@@ -62,7 +62,7 @@ void PacketDemultiplexer::handleCanPopPacket(cGate *gate)
     Enter_Method("handleCanPopPacket");
     for (int i = 0; i < (int)outputGates.size(); i++)
         // NOTE: notifying a listener may prevent others from popping
-        if (provider->canPopSomePacket(inputGate->getPathStartGate()))
+        if (collectors[i] != nullptr && provider->canPopSomePacket(inputGate->getPathStartGate()))
             collectors[i]->handleCanPopPacket(outputGates[i]);
 }
 

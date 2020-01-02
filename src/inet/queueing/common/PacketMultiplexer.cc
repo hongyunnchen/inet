@@ -29,7 +29,7 @@ void PacketMultiplexer::initialize(int stage)
     if (stage == INITSTAGE_LOCAL) {
         for (int i = 0; i < gateSize("in"); i++) {
             auto inputGate = gate("in", i);
-            auto input = getConnectedModule<IActivePacketSource>(inputGate);
+            auto input = findConnectedModule<IActivePacketSource>(inputGate);
             inputGates.push_back(inputGate);
             producers.push_back(input);
         }
@@ -37,8 +37,12 @@ void PacketMultiplexer::initialize(int stage)
         consumer = findConnectedModule<IPassivePacketSink>(outputGate);
     }
     else if (stage == INITSTAGE_QUEUEING) {
-        for (auto inputGate : inputGates)
-            checkPushPacketSupport(inputGate);
+        for (int i = 0; i < (int)inputGates.size(); i++) {
+            auto inputGate = inputGates[i];
+            auto producer = producers[i];
+            if (producer != nullptr)
+                checkPushPacketSupport(inputGate);
+        }
         if (consumer != nullptr)
             checkPushPacketSupport(outputGate);
     }
@@ -59,8 +63,23 @@ void PacketMultiplexer::handleCanPushPacket(cGate *gate)
     Enter_Method("handleCanPushPacket");
     for (int i = 0; i < (int)inputGates.size(); i++)
         // NOTE: notifying a listener may prevent others from pushing
-        if (consumer->canPushSomePacket(outputGate))
+        if (producers[i] != nullptr && consumer->canPushSomePacket(outputGate))
             producers[i]->handleCanPushPacket(inputGates[i]);
+}
+
+void PacketMultiplexer::handleRegisterService(const Protocol& protocol, cGate *out, ServicePrimitive servicePrimitive)
+{
+    Enter_Method("handleRegisterService");
+    int size = gateSize("in");
+    for (int i = 0; i < size; i++)
+        if (i != out->getIndex())
+            registerService(protocol, gate("in", i), servicePrimitive);
+}
+
+void PacketMultiplexer::handleRegisterProtocol(const Protocol& protocol, cGate *in, ServicePrimitive servicePrimitive)
+{
+    Enter_Method("handleRegisterProtocol");
+    registerProtocol(protocol, gate("out"), servicePrimitive);
 }
 
 } // namespace queueing

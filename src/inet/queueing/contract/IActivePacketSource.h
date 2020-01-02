@@ -42,6 +42,8 @@ class INET_API IActivePacketSource
      * passive packet sink at the given gate. The gate is never nullptr.
      */
     virtual void handleCanPushPacket(cGate *gate) = 0;
+
+    virtual void handlePushPacketConfirmation(Packet *packet, cGate *gate, bool successful) { }
 };
 
 } // namespace queueing

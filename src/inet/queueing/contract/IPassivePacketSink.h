@@ -51,6 +51,12 @@ class INET_API IPassivePacketSink
      * must support pushing packets.
      */
     virtual void pushPacket(Packet *packet, cGate *gate = nullptr) = 0;
+
+    virtual void pushPacketStart(Packet *packet, cGate *gate = nullptr) { }
+    virtual void pushPacketProgress(Packet *packet, b position, b extraProcessableLength = b(0), cGate *gate = nullptr) { }
+    virtual void pushPacketEnd(Packet *packet, cGate *gate = nullptr) { }
+
+    virtual b getPushedPacketConfirmedLength(Packet *packet, cGate *gate = nullptr) { return b(0); }
 };
 
 } // namespace queueing
