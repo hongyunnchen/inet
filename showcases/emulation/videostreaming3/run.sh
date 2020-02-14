@@ -15,3 +15,5 @@ inet_dbg -u Cmdenv -f omnetpp.ini
 
 # kill child processes
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
+
+# note -> lehet netns-el is/virtual ethernet interface-el...akkor nem kell a NAT -> azért kell a NAT/veth mert különben a local loopback-en menne
