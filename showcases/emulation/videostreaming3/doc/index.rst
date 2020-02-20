@@ -22,8 +22,11 @@ Note that this showcase requires the ``VoIPStream`` and ``Emulation`` features o
 
 ...
 
-The Simulation Setup
---------------------
+.. The Simulation Setup
+   --------------------
+
+The Model
+---------
 
 structure
 
@@ -69,3 +72,19 @@ In the setup, a real VLC instance streams a video file. The packets will travers
    :align: center
 
 TODO extEthernet
+
+so
+
+- this showcase is about running real applications in a simulated network
+- this is useful to test applications without having to build a real network
+- its more flexible that way
+- the scenario is that a VLC media player instance streams a video file over a simulated network to another instance, which plays it
+- the simulated and real parts are separated at the phy/link layer
+- we'll use ExtUpperEthernet interface to do that
+- the host os will have a two tap devices each associated to an extupperethernet interface
+- and packets will be created by VLC, and sent down the protocol stack (UDP, IP) and into the tap device
+- which sends it into the simulation
+- it traverses the network and up the protocol stack to the other VLC
+
+- the network contains a router and two etherswitches
+- but it could be any arbitrary simulated network
