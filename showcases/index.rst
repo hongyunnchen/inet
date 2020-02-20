@@ -21,6 +21,7 @@ The following showcases are available:
    emulation/index
       basic/doc/index
       voip/doc/index
+      videostreaming3/doc/index
       babel/doc/index
 
    general/index
