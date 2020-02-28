@@ -23,15 +23,25 @@ The Model
 
 The simulation scenario is illustrated with the following schematic:
 
-The following schematic gives a logical overview of the simulation scenario:
+.. The following schematic gives a logical overview of the simulation scenario:
 
 .. figure:: media/setup.png
    :width: 50%
    :align: center
 
-In the scenario, there are two hosts, a sender and a receiver. The hosts are realized in the real world from the link-layer up. Below that, the hosts and the network are simulated. The simulation and the real world is connected at the Ethernet interface. We'll use an :ned:`ExtUpperEthernet` interface. The upper part of this module is a TAP interface in the host OS, the lower part connects to the simulation. Packets received by the interface from the lower layers pass through the TAP interface to the host os. Inversely, packets received by the TAP interface are injected into the simulation.
+**V1** In the scenario, there are two hosts, a sender and a receiver. The hosts are realized in the real world from the link-layer up. Below that, the hosts and the network are simulated. The simulation and the real world is connected at the Ethernet interface. We'll use an :ned:`ExtUpperEthernet` interface. The upper part of this module is a TAP interface in the host OS, the lower part connects to the simulation. Packets received by the interface from the lower layers pass through the TAP interface to the host os. Inversely, packets received by the TAP interface are injected into the simulation.
 
-We'll use a VLC instance in the sender host to stream a video file. The packets travel down the host os protocol stack and enter the simulation at the Ethernet interface. Then they traverse the simulated network, enter the receiver host's Ethernet interface, and are injected into the host os protocol stack, and travel up to another VLC instance which plays the video.
+**V2** In this scenario, a VLC instance in a sender host streams a video file to another VLC instance in a receiver host over the network. The hosts from the link-layer up are real, parts of the link-layer and the physical layer, and the network as well, are simulated.
+
+**V2** We'll use the :ned:`ExtUpperEthernet` interface to separate the real and simulated parts of scenario.
+The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to send and receive packets from the host OS. **TODO?**
+Note that the real and simulated parts can be separated at other levels of the protocol stack, using other, suitable EXT interface modules, such as **TODO**.
+
+Note that the in reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
+
+TODO
+
+  We'll use a VLC instance in the sender host to stream a video file. The packets travel down the host os protocol stack and enter the simulation at the Ethernet interface. Then they traverse the simulated network, enter the receiver host's Ethernet interface, and are injected into the host os protocol stack, and travel up to another VLC instance which plays the video.
 
 The network for the simulation is the following:
 
@@ -39,4 +49,23 @@ The network for the simulation is the following:
    :width: 80%
    :align: center
 
-It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`EtherSwitch`) to a :ned:`Router`. The hosts contain an extupperethernet interface...
+It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`EtherSwitch`) to a :ned:`Router`. The hosts are present in the simulation, and contain an :ned:`ExtUpperEthernetInterface`,
+they are also present in the host OS.
+
+.. The hosts contain an extupperethernet interface...
+
+TODO sim time limit
+
+Here is the configuration in omnetpp.ini:
+
+.. literalinclude:: ../omnetpp.ini
+   :language: ini
+
+- the hosts use extupperethernetinterface
+- need the scheduler class
+- and the crc mode
+- need to specify the tap interface (created by scripts; later)
+- copy from the ext -> set the ip addresses from the script, and copy from there so they match
+- set up NAT
+- and ip addresses in the network
+- cos we'll use that to send the video file -> its needed so that the packets get into the simulation/simulated network
