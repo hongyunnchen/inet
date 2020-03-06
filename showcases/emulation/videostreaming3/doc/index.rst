@@ -73,8 +73,24 @@ The network for the simulation is the following:
    :width: 80%
    :align: center
 
-It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`EtherSwitch`) to a :ned:`Router`. The hosts are present in the simulation, and contain an :ned:`ExtUpperEthernetInterface`,
-they are also present in the host OS.
+It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`EtherSwitch`) to a :ned:`Router`.
+
+  The hosts contain an :ned:`ExtUpperEthernetInterface`,
+  they are also present in the host OS.
+
+- the vlc sender will send the video stream to the address out the router
+- the router will perform NAT to the address of the TAP interface of the receiver host
+- this is required so that the packets enter the simulation
+- otherwise they would use the loopback interface
+
+- the configuration
+- the scripts start the simulation and the streaming
+
+The sender application will stream the video to the address of the router in the simulation.
+The router will perform network address translation to rewrite the destination address to the address of the receiver host's Ext/Tap interface. **V1** This is required so that the video packets enter the simulation; if they were sent to the receiver host's ext/tap interface, they would go through the loopback interface.
+**V2** This is required so that the video packets enter the simulation, instead of going through the loopback interface.
+
+The configuration...
 
 .. The hosts contain an extupperethernet interface...
 
