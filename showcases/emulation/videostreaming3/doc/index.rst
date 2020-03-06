@@ -46,21 +46,18 @@ so
 
 **V2** In this scenario, a VLC instance in a sender host streams a video file to another VLC instance in a receiver host over the network. The hosts from the link-layer up are real, parts of the link-layer and the physical layer, and the network as well, are simulated.
 
-**V2** We'll use the :ned:`ExtUpperEthernet` interface to separate the real and simulated parts of scenario.
+We'll use the :ned:`ExtUpperEthernet` interface to connect the real and simulated parts of scenario.
+The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to send and receive packets to and from the upper layers of the host OS.
 
-**V1** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to send and receive packets to and from the upper layers of the host OS.
+.. **V2.2** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host os to connect the host os and the simulation.
 
-.. **TODO?**
-
-**V2** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host os to connect the host os and the simulation.
-
-**V3** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to connect the host OS and the simulation, i.e. send and receive packets to and from the upper layers of the host OS.
+.. **V2.3** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to connect the host OS and the simulation, i.e. send and receive packets to and from the upper layers of the host OS.
 
 Note that the real and simulated parts can be separated at other levels of the protocol stack, using other, suitable EXT interface modules, such as **TODO**.
 
-**V1** Note that the in reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
+.. **V1** Note that the in reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
 
-**V2** In reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
+In reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
 **TODO** even though logically they are different hosts (they can actaully be on different machines TODO)
 
 TODO
@@ -70,6 +67,10 @@ We'll use a VLC instance in the sender host to stream a video file. The packets 
 The network for the simulation is the following:
 
 .. figure:: media/Network.png
+   :width: 80%
+   :align: center
+
+.. figure:: media/Network2.png
    :width: 80%
    :align: center
 
@@ -87,19 +88,43 @@ It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`Et
 - the scripts start the simulation and the streaming
 
 The sender application will stream the video to the address of the router in the simulation.
-The router will perform network address translation to rewrite the destination address to the address of the receiver host's Ext/Tap interface. **V1** This is required so that the video packets enter the simulation; if they were sent to the receiver host's ext/tap interface, they would go through the loopback interface.
+The router will perform network address translation to rewrite the destination address to the address of the receiver host's Ext/Tap interface.
+
+**V1** This is required so that the video packets enter the simulated network; if they were sent to the receiver host's ext/tap interface, they would go through the loopback interface.
+
 **V2** This is required so that the video packets enter the simulation, instead of going through the loopback interface.
 
-The configuration...
+Three shell scripts in the showcase's directory can be used to control the emulation scenario.
+The ``setup.sh`` script creates the tap interfaces, assigns IP addresses to them, and brings them up:
+
+.. literalinclude:: ../setup.sh
+   :language: bash
+
+The ``teardown.sh`` script does the opposite; it destroys the tap interfaces after the user is done playing with this whole thing TODO.
+
+.. literalinclude:: ../teardown.sh
+   :language: bash
+
+The ``run.sh`` script starts the simulation, and both video applications:
+
+.. literalinclude:: ../run.sh
+   :language: bash
 
 .. The hosts contain an extupperethernet interface...
 
-TODO sim time limit
+**TODO** sim time limit
 
 Here is the configuration in omnetpp.ini:
 
 .. literalinclude:: ../omnetpp.ini
    :language: ini
+
+In the configuration, the scheduler class is set to ``RealTimeScheduler`` so that the simulation can run in the real time of the host OS.
+The hosts are configured to have an :ned:`ExtUpperEthernetInterface`, and to use the TAP devices which were created by the setup script. The script assigned IP addresses to the TAP interfaces; the tap interfaces are set to copy the addresses from the tap interfaces.
+Finally, the addresses in the network are important; the configurator is set to assign the correct addresses so the simulation and the script can work together (the VLC sends the video packets to the router, so its address needs to match as the destination address in the script).
+The NAT table in the router's ivp4 module is configured to rewrite the source and destination address
+of packets which are addressed to it's eth0 interface before routing; the resulting packets have a source address of the router's eth1 interface and the destination address of the receiver host's ext interface. **TODO** rewrite
+Also, need to calculate CRC/FCS to properly serialize/deserialize packets
 
 - the hosts use extupperethernetinterface
 - need the scheduler class
