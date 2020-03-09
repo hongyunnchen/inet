@@ -1,11 +1,5 @@
 # start streaming server
-#cvlc https://www.youtube.com/watch?v=dQw4w9WgXcQ --sout '#transcode{vcodec=h264,acodec=mpga,vb=125k,ab=64k,deinterlace,scale=0.25,threads=2}:rtp{mux=ts,dst=192.168.2.99,port=4004}' &
-#cvlc https://www.youtube.com/watch?v=dQw4w9WgXcQ --sout '#transcode{vcodec=h264,acodec=mpga,vb=125k,ab=64k,deinterlace,scale=0.25,threads=2}:rtp{access=http,mux=ts,dst=192.168.2.99,port=4004}' &
-#vlc -vv https://www.youtube.com/watch?v=dQw4w9WgXcQ --sout '#rtp{dst=192.168.2.99,port=4004,sdp=sap,name="TestStream"}' &
-#vlc -vv https://www.youtube.com/watch?v=dQw4w9WgXcQ --sout '#rtp{dst=192.168.2.99,port=4004}' &
-#vlc -vv RickAstley.mkv --sout '#rtp{dst=192.168.2.99,port=4004}' &
 cvlc RickAstley.mkv --sout '#transcode{vcodec=h264,acodec=mpga,vb=125k,ab=64k,deinterlace,scale=0.25,threads=2}:rtp{mux=ts,dst=192.168.2.99,port=4004}' &
-
 
 # start streaming client
 vlc rtp://192.168.3.20:4004 &
@@ -15,5 +9,3 @@ inet_dbg -u Cmdenv -f omnetpp.ini
 
 # kill child processes
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
-
-# note -> lehet netns-el is/virtual ethernet interface-el...akkor nem kell a NAT -> azért kell a NAT/veth mert különben a local loopback-en menne

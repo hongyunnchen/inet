@@ -114,7 +114,9 @@ The ``run.sh`` script starts the simulation, and both video applications:
 
 **TODO** sim time limit
 
-Here is the configuration in omnetpp.ini:
+-----------------------------------
+
+**V1** Here is the configuration in omnetpp.ini:
 
 .. literalinclude:: ../omnetpp.ini
    :language: ini
@@ -125,6 +127,39 @@ Finally, the addresses in the network are important; the configurator is set to 
 The NAT table in the router's ivp4 module is configured to rewrite the source and destination address
 of packets which are addressed to it's eth0 interface before routing; the resulting packets have a source address of the router's eth1 interface and the destination address of the receiver host's ext interface. **TODO** rewrite
 Also, need to calculate CRC/FCS to properly serialize/deserialize packets
+
+-----------------------------------
+
+**V2** In the configuration in omnetpp.ini, the scheduler class is set to ``RealTimeScheduler`` so that the simulation can run in the real time of the host OS:
+
+.. literalinclude:: ../omnetpp.ini
+   :language: ini
+   :end-at: sim-time-limit
+
+.. The ethernet interface type in both hosts is set to :ned:`ExtUpperEthernetInterface`:
+
+The hosts are configured to have an :ned:`ExtUpperEthernetInterface`, and to use the TAP devices which were created by the setup script. The script assigned IP addresses to the TAP interfaces; the tap interfaces are set to copy the addresses from the tap interfaces:
+
+.. literalinclude:: ../omnetpp.ini
+   :language: ini
+   :start-at: ExtUpperEthernetInterface
+   :end-at: host2.eth[0].copyConfiguration
+
+Finally, the addresses in the network are important; the configurator is set to assign the correct addresses so the simulation and the script can work together (the VLC sends the video packets to the router, so its address needs to match as the destination address in the script):
+
+.. literalinclude:: ../omnetpp.ini
+   :language: ini
+   :start-at: configurator
+   :end-at: /config
+
+Also, need to calculate CRC/FCS to properly serialize/deserialize packets TODO:
+
+.. literalinclude:: ../omnetpp.ini
+   :language: ini
+   :start-at: crcMode
+   :end-at: fcsMode
+
+-----------------------------------
 
 - the hosts use extupperethernetinterface
 - need the scheduler class
