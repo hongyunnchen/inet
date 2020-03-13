@@ -75,11 +75,9 @@ void EtherPhy::initialize(int stage)
         txTransmissionChannel = rxTransmissionChannel = nullptr;
 
         // initialize states
-        txState = TX_OFF_STATE;
-        rxState = RX_OFF_STATE;
+        txState = TX_INVALID_STATE;
+        rxState = RX_INVALID_STATE;
         lastRxStateChangeTime = simTime();
-        emit(txStateChangedSignal, static_cast<intval_t>(txState));
-        emit(rxStateChangedSignal, static_cast<intval_t>(rxState));
 
         // initialize self messages
         endTxMsg = new cMessage("EndTransmission", ENDTRANSMISSION);

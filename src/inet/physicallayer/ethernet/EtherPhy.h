@@ -43,14 +43,16 @@ namespace physicallayer {
 class INET_API EtherPhy : public cPhyModule, public cListener
 {
   public:
-    enum TxState : unsigned short{
+    enum TxState : short{
+        TX_INVALID_STATE = -1,
         TX_OFF_STATE = 0,
         TX_IDLE_STATE,
         TX_TRANSMITTING_STATE,
         TX_LAST = TX_TRANSMITTING_STATE
     };
 
-    enum RxState : unsigned short{
+    enum RxState : short{
+        RX_INVALID_STATE = -1,
         RX_OFF_STATE = 0,
         RX_IDLE_STATE,
         RX_RECEIVING_STATE,
@@ -77,8 +79,8 @@ class INET_API EtherPhy : public cPhyModule, public cListener
     bool   sendRawBytes = false;
     bool   duplexMode = true;
     bool   connected = false;    // true if connected to a network, set automatically by exploring the network configuration
-    TxState txState = TX_OFF_STATE;    // "transmit state" of the MAC
-    RxState rxState = RX_OFF_STATE;    // "receive state" of the MAC
+    TxState txState = TX_INVALID_STATE;    // "transmit state" of the MAC
+    RxState rxState = RX_INVALID_STATE;    // "receive state" of the MAC
 
     // statistics
     simtime_t lastRxStateChangeTime;
