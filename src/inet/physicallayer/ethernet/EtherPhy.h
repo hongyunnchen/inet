@@ -65,7 +65,8 @@ class INET_API EtherPhy : public cPhyModule, public cListener
 
     const char *displayStringTextFormat = nullptr;
     InterfaceEntry *interfaceEntry = nullptr;   // NIC module
-    cChannel *transmissionChannel = nullptr;    // transmission channel
+    cChannel *rxTransmissionChannel = nullptr;    // rx transmission channel
+    cChannel *txTransmissionChannel = nullptr;    // tx transmission channel
     cGate *physInGate = nullptr;    // pointer to the "phys$i" gate
     cGate *physOutGate = nullptr;    // pointer to the "phys$o" gate
     cGate *upperLayerInGate = nullptr;

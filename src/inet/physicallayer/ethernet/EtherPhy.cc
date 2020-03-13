@@ -69,13 +69,14 @@ void EtherPhy::initialize(int stage)
         sendRawBytes = par("sendRawBytes");
 
         // initialize connected flag
-        connected = physOutGate->getPathEndGate()->isConnected() && physInGate->getPathStartGate()->isConnected();
-        if (!connected)
-            EV_WARN << "PHY not connected to a network.\n";
+        connected = false;
+        physOutGate->getPathEndGate()->isConnected() && physInGate->getPathStartGate()->isConnected();
+
+        txTransmissionChannel = rxTransmissionChannel = nullptr;
 
         // initialize states
-        txState = connected ? TX_IDLE_STATE : TX_OFF_STATE;
-        rxState = connected ? RX_IDLE_STATE : RX_OFF_STATE;
+        txState = TX_OFF_STATE;
+        rxState = RX_OFF_STATE;
         lastRxStateChangeTime = simTime();
         emit(txStateChangedSignal, static_cast<intval_t>(txState));
         emit(rxStateChangedSignal, static_cast<intval_t>(rxState));
@@ -100,14 +101,12 @@ void EtherPhy::initialize(int stage)
             throw cRuntimeError("half-duplex currently not supported.");
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
-        transmissionChannel = physOutGate->findTransmissionChannel();
-        if (transmissionChannel) {
-            transmissionChannel->subscribe(POST_MODEL_CHANGE, this);
-            if (transmissionChannel->hasPar("datarate")) {
-                bitrate = transmissionChannel->par("datarate");
-                interfaceEntry->par("bitrate").setDoubleValue(bitrate);
-            }
-        }
+        if (checkConnected())
+            handleConnected();
+        else
+            handleDisconnected();
+        if (!connected)
+            EV_WARN << "PHY not connected to a network.\n";
     }
 }
 
@@ -195,7 +194,7 @@ void EtherPhy::receiveSignal(cComponent *source, simsignal_t signalID, cObject *
         }
         else if (auto gcobj = dynamic_cast<cPreParameterChangeNotification *>(obj)) {
             if (connected
-                    && (gcobj->par->getOwner() == transmissionChannel || gcobj->par->getOwner() == physInGate->findIncomingTransmissionChannel())
+                    && (gcobj->par->getOwner() == txTransmissionChannel || gcobj->par->getOwner() == rxTransmissionChannel)
                     && gcobj->par->getType() == cPar::BOOL
                     && strcmp(gcobj->par->getName(), "disabled") == 0
                     /* && gcobj->newValue == true */ //TODO the new value of parameter currently unavailable
@@ -225,16 +224,28 @@ void EtherPhy::handleConnected()
 {
     if (!connected) {
         connected = true;
-        transmissionChannel = physOutGate->getTransmissionChannel();
-        if (!transmissionChannel->isSubscribed(POST_MODEL_CHANGE, this))
-            transmissionChannel->subscribe(POST_MODEL_CHANGE, this);
+        txTransmissionChannel = physOutGate->getTransmissionChannel();
+        if (!txTransmissionChannel->isSubscribed(POST_MODEL_CHANGE, this))
+            txTransmissionChannel->subscribe(POST_MODEL_CHANGE, this);
         changeTxState(TX_IDLE_STATE);
+        rxTransmissionChannel = physInGate->getIncomingTransmissionChannel();
+        if (!rxTransmissionChannel->isSubscribed(POST_MODEL_CHANGE, this))
+            rxTransmissionChannel->subscribe(POST_MODEL_CHANGE, this);
         changeRxState(RX_IDLE_STATE);
         interfaceEntry->setCarrier(true);
-        if (transmissionChannel->hasPar("datarate")) {
-            bitrate = transmissionChannel->par("datarate");
+
+        if (rxTransmissionChannel->hasPar("datarate") && txTransmissionChannel->hasPar("datarate")) {
+            bitrate = txTransmissionChannel->par("datarate");
+            double rxBitrate = rxTransmissionChannel->par("datarate");
+            if (bitrate != rxBitrate)
+                throw cRuntimeError("The datarate parameters on tx and rx transmission channels are differ %g vs %g", bitrate, rxBitrate);
             interfaceEntry->par("bitrate").setDoubleValue(bitrate);
         }
+        else if (!rxTransmissionChannel->hasPar("datarate") && !txTransmissionChannel->hasPar("datarate")) {
+            // channels doesn't have datarate parameters
+        }
+        else
+            throw cRuntimeError("asymmetric settings: only one channel has datarate parameter on tx/rx transmission channels");
     }
 }
 
@@ -244,8 +255,9 @@ void EtherPhy::handleDisconnected()
         abortTx();
         abortRx();
         connected = false;
-        transmissionChannel = nullptr;
+        txTransmissionChannel = physOutGate->findTransmissionChannel();
         changeTxState(TX_OFF_STATE);
+        rxTransmissionChannel = physInGate->findIncomingTransmissionChannel();
         changeRxState(RX_OFF_STATE);
         interfaceEntry->setCarrier(false);
     }
@@ -277,7 +289,7 @@ void EtherPhy::startTx(EthernetSignalBase *signal)
     curTx = signal;
     auto duration = calculateDuration(curTx);
     sendPacketStart(curTx, physOutGate, duration);
-    ASSERT(transmissionChannel->getTransmissionFinishTime() == simTime() + duration);
+    ASSERT(txTransmissionChannel->getTransmissionFinishTime() == simTime() + duration);
     scheduleAt(simTime() + duration, endTxMsg);
     changeTxState(TX_TRANSMITTING_STATE);
 }
@@ -299,7 +311,7 @@ void EtherPhy::abortTx()
         ASSERT(curTx != nullptr);
         ASSERT(endTxMsg->isScheduled());
         auto abortTime = simTime();
-        transmissionChannel->forceTransmissionFinishTime(abortTime);
+        txTransmissionChannel->forceTransmissionFinishTime(abortTime);
         cancelEvent(endTxMsg);
         emit(txAbortedSignal, 1);   //TODO
         curTx = nullptr;
