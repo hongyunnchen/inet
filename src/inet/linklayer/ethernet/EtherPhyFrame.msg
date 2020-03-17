@@ -65,6 +65,12 @@ packet EthernetFilledIfgSignal extends EthernetSignalBase
     bitLength = b(INTERFRAME_GAP_BITS).get();
 }
 
+enum EthernetPreambleType {
+    SFD = 1;
+    SMD_E = 2;
+    SMD_Sx = 3;
+    SMD_Cx = 4;
+};
 //
 // Represents an Ethernet PHY frame.
 //
@@ -76,5 +82,7 @@ packet EthernetFilledIfgSignal extends EthernetSignalBase
 class EthernetPhyHeader extends FieldsChunk
 {
     chunkLength = PREAMBLE_BYTES + SFD_BYTES;
+    EthernetPreambleType type = SFD;
+    int fragCount = -1;
 }
 

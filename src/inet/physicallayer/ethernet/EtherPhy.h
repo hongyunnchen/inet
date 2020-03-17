@@ -122,6 +122,7 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     bool checkConnected();
     virtual void handleConnected();
     virtual void handleDisconnected();
+    virtual void processMsgFromUpperLayer(cMessage *message);
 
     virtual bool handleOperationStage(LifecycleOperation *operation, IDoneCallback *doneCallback) override;
 

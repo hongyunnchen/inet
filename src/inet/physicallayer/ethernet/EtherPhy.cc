@@ -21,6 +21,7 @@
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/packet/Packet.h"
 #include "inet/linklayer/ethernet/EtherPhyFrame_m.h"
+#include "inet/physicallayer/contract/ethernet/EtherPhyCmd_m.h"
 #include "inet/physicallayer/ethernet/EtherPhy.h"
 
 namespace inet {
@@ -157,9 +158,7 @@ void EtherPhy::handleMessage(cMessage *message)
     }
     else if (connected) {
         if (message->getArrivalGate() == upperLayerInGate) {
-            auto packet = check_and_cast<Packet *>(message);
-            auto signal = encapsulate(packet);
-            startTx(signal);
+            processMsgFromUpperLayer(message);
         }
         else if (message->getArrivalGate() == physInGate) {
             receiveFromMedium(message);
@@ -170,6 +169,31 @@ void EtherPhy::handleMessage(cMessage *message)
     else {
         EV_ERROR << "Message " << message << " arrived when PHY disconnected, dropped\n";
         delete message;
+    }
+}
+
+void EtherPhy::processMsgFromUpperLayer(cMessage *message)
+{
+    switch (message->getKind()) {
+        case CMD_SEND:
+        case CMD_SEND_EXPRESS:
+        case CMD_SEND_PREEMPTABLE:
+        case CMD_SEND_CONTINUED_PREEMPTABLE: {
+            auto packet = check_and_cast<Packet *>(message);
+            auto signal = encapsulate(packet);
+            startTx(signal);
+            break;
+        }
+        case CMD_MODIFY_CURRENT_PREEMPTABLE: {  // módosítja az éppen küldés alatt álló csomagot
+                                                // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
+                                                // param: offset of first changed byte
+            if (curTx == nullptr)
+                throw cRuntimeError("Module doesn't have a modifiable transmission");    //FIXME
+            throw cRuntimeError("currently not implemented!!!");    //FIXME
+            break;
+        }
+        default:
+            throw cRuntimeError("Invalid message kind: %d", message->getKind());
     }
 }
 
@@ -284,6 +308,27 @@ void EtherPhy::handleDisconnected()
 EthernetSignal *EtherPhy::encapsulate(Packet *packet)
 {
     auto phyHeader = makeShared<EthernetPhyHeader>();
+    switch (packet->getKind()) {
+        case CMD_SEND:
+            phyHeader->setType(SFD);
+            break;
+        case CMD_SEND_EXPRESS:
+            phyHeader->setType(SMD_E);
+            break;
+        case CMD_SEND_PREEMPTABLE:
+            phyHeader->setType(SMD_Sx);
+            break;
+        case CMD_SEND_CONTINUED_PREEMPTABLE: {
+            phyHeader->setType(SMD_Cx);
+            auto fragCount = check_and_cast<PreemptableFragmentCtrlInfo*>(packet->getControlInfo())->getFragCount();
+            phyHeader->setFragCount(fragCount);
+            break;
+        }
+        case CMD_MODIFY_CURRENT_PREEMPTABLE:
+            throw cRuntimeError("Model Error");
+        default:
+            throw cRuntimeError("Invalid message kind: %d", packet->getKind());
+    }
     packet->insertAtFront(phyHeader);
     packet->clearTags();
     packet->addTag<PacketProtocolTag>()->setProtocol(&Protocol::ethernetPhy);
