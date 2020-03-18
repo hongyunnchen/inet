@@ -183,18 +183,45 @@ void EtherPhy::processMsgFromUpperLayer(cMessage *message)
             auto signal = encapsulate(packet);
             startTx(signal);
             break;
+            break;
         }
         case CMD_MODIFY_CURRENT_PREEMPTABLE: {  // módosítja az éppen küldés alatt álló csomagot
                                                 // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
                                                 // param: offset of first changed byte
-            if (curTx == nullptr)
-                throw cRuntimeError("Module doesn't have a modifiable transmission");    //FIXME
-            throw cRuntimeError("currently not implemented!!!");    //FIXME
+            modifyCurrentPreemptableTx(message);
             break;
         }
         default:
             throw cRuntimeError("Invalid message kind: %d", message->getKind());
     }
+}
+
+void EtherPhy::modifyCurrentPreemptableTx(cMessage *message)
+{
+    if (curTx == nullptr)
+        throw cRuntimeError("Module doesn't have a modifiable transmission");
+
+    if (auto signal = dynamic_cast<EthernetSignal*>(curTx)) {
+        auto oldPacket = check_and_cast<Packet*>(signal->getEncapsulatedPacket());
+        const auto& phyHeader = oldPacket->peekAtFront<EthernetPhyHeader>();
+        auto type = phyHeader->getType();
+        if (type == SMD_Sx || type == SMD_Cx) {
+            auto newPacket = check_and_cast<Packet *>(message);
+            B pkOffset = check_and_cast<PreemptableModifierCtrlInfo*>(newPacket->getControlInfo())->getFirstChangedOffset();
+            B signalOffset = PREAMBLE_BYTES + SFD_BYTES + pkOffset;
+            simtime_t timePosition = calculateDuration(PREAMBLE_BYTES + SFD_BYTES + pkOffset, curTx->getBitrate());
+            if (curTxStartTime + timePosition < simTime())
+                throw cRuntimeError("CMD_MODIFY_CURRENT_PREEMPTABLE message arrived too later");
+
+            newPacket->setKind(type == SMD_Sx ? CMD_SEND_PREEMPTABLE : CMD_SEND_CONTINUED_PREEMPTABLE);
+            auto newSignal = encapsulate(newPacket);
+            //FIXME at curTxStartTime + timePosition:
+            sendPacketProgress(newSignal, physOutGate, newSignal->getDuration(), b(pkOffset).get(), timePosition);
+            curTx = newSignal;
+            return;
+        }
+    }
+    throw cRuntimeError("current Tx EthernetSignal doesn't preemptable");
 }
 
 bool EtherPhy::checkConnected()
@@ -340,9 +367,14 @@ EthernetSignal *EtherPhy::encapsulate(Packet *packet)
     return signal;
 }
 
-simtime_t EtherPhy::calculateDuration(EthernetSignalBase *signal)
+simtime_t EtherPhy::calculateDuration(EthernetSignalBase *signal) const
 {
     return signal->getBitLength() / signal->getBitrate();
+}
+
+simtime_t EtherPhy::calculateDuration(b length, double bitrate)
+{
+    return length.get() / bitrate;
 }
 
 void EtherPhy::startTx(EthernetSignalBase *signal)
@@ -351,6 +383,7 @@ void EtherPhy::startTx(EthernetSignalBase *signal)
     ASSERT(curTx == nullptr);
 
     curTx = signal;
+    curTxStartTime = simTime();
     auto duration = calculateDuration(curTx);
     sendPacketStart(curTx, physOutGate, duration);
     ASSERT(txTransmissionChannel->getTransmissionFinishTime() == simTime() + duration);

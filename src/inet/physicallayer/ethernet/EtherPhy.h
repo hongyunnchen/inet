@@ -74,6 +74,7 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     cGate *upperLayerInGate = nullptr;
     cMessage *endTxMsg = nullptr;
     EthernetSignalBase *curTx = nullptr;
+    simtime_t curTxStartTime;
     EthernetSignalBase *curRx = nullptr;
     double bitrate = NaN;
     bool   sendRawBytes = false;
@@ -103,7 +104,8 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     void changeRxState(RxState newState);
 
     EthernetSignal *encapsulate(Packet *packet);
-    virtual simtime_t calculateDuration(EthernetSignalBase *signal);
+    virtual simtime_t calculateDuration(EthernetSignalBase *signal) const;
+    static simtime_t calculateDuration(b length, double bitrate);
     virtual void startTx(EthernetSignalBase *signal);
     virtual void endTx();
     virtual void abortTx();
@@ -123,6 +125,8 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     virtual void handleConnected();
     virtual void handleDisconnected();
     virtual void processMsgFromUpperLayer(cMessage *message);
+    virtual void modifyCurrentPreemptableTx(cMessage *message);
+
 
     virtual bool handleOperationStage(LifecycleOperation *operation, IDoneCallback *doneCallback) override;
 
