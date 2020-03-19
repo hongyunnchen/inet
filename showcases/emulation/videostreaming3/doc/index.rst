@@ -25,16 +25,16 @@ The simulation scenario is illustrated with the following topological/theoretica
 
 **TODO** meaning that this is the logical overview of the setup; which parts are simulated which are real and how they are interfaced is another layer on top of this; there are multiple ways to do that, e.g. at the link layer, or transport layer, etc. Actually, this layer is another layer on this schematic as well (blue).
 
-so
+.. so
 
-- first, about the overview
-- then, about where/how it is separated/interfaced
-- emphasize other possibilities of separation/interfacing (other ext interfaces)
-- then how that will work/the details of the scenario (?) -> the actual schematic
-- the scripts
-- the NED network
-- the config
-- maybe not in that order
+  - first, about the overview
+  - then, about where/how it is separated/interfaced
+  - emphasize other possibilities of separation/interfacing (other ext interfaces)
+  - then how that will work/the details of the scenario (?) -> the actual schematic
+  - the scripts
+  - the NED network
+  - the config
+  - maybe not in that order
 
 .. The following schematic gives a logical overview of the simulation scenario:
 
@@ -42,9 +42,9 @@ so
    :width: 50%
    :align: center
 
-**V1** In the scenario, there are two hosts, a sender and a receiver. The hosts are realized in the real world from the link-layer up. Below that, the hosts and the network are simulated. The simulation and the real world is connected at the Ethernet interface. We'll use an :ned:`ExtUpperEthernet` interface. The upper part of this module is a TAP interface in the host OS, the lower part connects to the simulation. Packets received by the interface from the lower layers pass through the TAP interface to the host os. Inversely, packets received by the TAP interface are injected into the simulation.
+.. **V1** In the scenario, there are two hosts, a sender and a receiver. The hosts are realized in the real world from the link-layer up. Below that, the hosts and the network are simulated. The simulation and the real world is connected at the Ethernet interface. We'll use an :ned:`ExtUpperEthernet` interface. The upper part of this module is a TAP interface in the host OS, the lower part connects to the simulation. Packets received by the interface from the lower layers pass through the TAP interface to the host os. Inversely, packets received by the TAP interface are injected into the simulation.
 
-**V2** In this scenario, a VLC instance in a sender host streams a video file to another VLC instance in a receiver host over the network. The hosts from the link-layer up are real; parts of the link-layer, as well as the physical layer and the network are simulated.
+In this scenario, a VLC instance in a sender host streams a video file to another VLC instance in a receiver host over the network. The hosts from the link-layer up are real; parts of the link-layer, as well as the physical layer and the network are simulated.
 
 We'll use the :ned:`ExtUpperEthernet` interface to connect the real and simulated parts of scenario.
 The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to send and receive packets to and from the upper layers of the host OS.
@@ -60,7 +60,7 @@ Note that the real and simulated parts can be separated at other levels of the p
 In reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
 **TODO** even though logically they are different hosts (they can actaully be on different machines TODO)
 
-TODO
+**TODO** schematic
 
 We'll use a VLC instance in the sender host to stream a video file. The packets travel down the host os protocol stack and enter the simulation at the Ethernet interface. Then they traverse the simulated network, enter the receiver host's Ethernet interface, and are injected into the host os protocol stack, and travel up to another VLC instance which plays the video.
 
