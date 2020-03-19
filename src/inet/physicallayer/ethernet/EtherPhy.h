@@ -63,6 +63,7 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     // Self-message kind values
     enum SelfMsgKindValues {
         ENDTRANSMISSION = 101,
+        MODIFYTRANSMISSION,
     };
 
     const char *displayStringTextFormat = nullptr;
@@ -74,6 +75,7 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     cGate *upperLayerInGate = nullptr;
     cMessage *endTxMsg = nullptr;
     EthernetSignalBase *curTx = nullptr;
+    cMessage *scheduledTxModifier = nullptr;
     simtime_t curTxStartTime;
     EthernetSignalBase *curRx = nullptr;
     double bitrate = NaN;
@@ -100,8 +102,10 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     virtual void finish() override;
     virtual void handleParameterChange(const char *parname) override;
 
-    void changeTxState(TxState newState);
-    void changeRxState(RxState newState);
+    virtual void handleSelfMessage(cMessage *message);
+
+    virtual void changeTxState(TxState newState);
+    virtual void changeRxState(RxState newState);
 
     EthernetSignal *encapsulate(Packet *packet);
     virtual simtime_t calculateDuration(EthernetSignalBase *signal) const;
@@ -121,12 +125,12 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     virtual void abortRx();
 
     virtual void receiveSignal(cComponent *src, simsignal_t signalId, cObject *obj, cObject *details) override;
-    bool checkConnected();
+    virtual bool checkConnected();
     virtual void handleConnected();
     virtual void handleDisconnected();
     virtual void processMsgFromUpperLayer(cMessage *message);
     virtual void modifyCurrentPreemptableTx(cMessage *message);
-
+    virtual void modifyTxProgress(cMessage *message);
 
     virtual bool handleOperationStage(LifecycleOperation *operation, IDoneCallback *doneCallback) override;
 

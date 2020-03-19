@@ -60,6 +60,7 @@ std::ostream& operator <<(std::ostream& o, EtherPhy::TxState s)
 EtherPhy::~EtherPhy()
 {
     cancelAndDelete(endTxMsg);
+    cancelAndDelete(scheduledTxModifier);
 }
 
 void EtherPhy::initialize(int stage)
@@ -151,10 +152,7 @@ void EtherPhy::changeRxState(RxState newState)
 void EtherPhy::handleMessage(cMessage *message)
 {
     if (message->isSelfMessage()) {
-        if (message == endTxMsg)
-            endTx();
-        else
-            throw cRuntimeError("Unknown self message received!");
+        handleSelfMessage(message);
     }
     else if (connected) {
         if (message->getArrivalGate() == upperLayerInGate) {
@@ -172,25 +170,36 @@ void EtherPhy::handleMessage(cMessage *message)
     }
 }
 
+void EtherPhy::handleSelfMessage(cMessage *message)
+{
+    switch(message->getKind()) {
+        case ENDTRANSMISSION:
+            ASSERT(message == endTxMsg);
+            endTx();
+            break;
+        case MODIFYTRANSMISSION:
+            ASSERT(message == scheduledTxModifier);
+            modifyTxProgress(message);
+            break;
+        default:
+            throw cRuntimeError("Unknown self message received! kind = %d", message->getKind());
+    }
+}
+
 void EtherPhy::processMsgFromUpperLayer(cMessage *message)
 {
     switch (message->getKind()) {
-        case CMD_SEND:
-        case CMD_SEND_EXPRESS:
-        case CMD_SEND_PREEMPTABLE:
-        case CMD_SEND_CONTINUED_PREEMPTABLE: {
+        case ETH_CMD_SEND:
+        case ETH_CMD_SEND_PREEMPTABLE:
+        {
             auto packet = check_and_cast<Packet *>(message);
             auto signal = encapsulate(packet);
             startTx(signal);
             break;
-            break;
         }
-        case CMD_MODIFY_CURRENT_PREEMPTABLE: {  // módosítja az éppen küldés alatt álló csomagot
-                                                // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
-                                                // param: offset of first changed byte
+        case ETH_CMD_MODIFY_CURRENT_PREEMPTABLE:
             modifyCurrentPreemptableTx(message);
             break;
-        }
         default:
             throw cRuntimeError("Invalid message kind: %d", message->getKind());
     }
@@ -207,21 +216,45 @@ void EtherPhy::modifyCurrentPreemptableTx(cMessage *message)
         auto type = phyHeader->getType();
         if (type == SMD_Sx || type == SMD_Cx) {
             auto newPacket = check_and_cast<Packet *>(message);
-            B pkOffset = check_and_cast<PreemptableModifierCtrlInfo*>(newPacket->getControlInfo())->getFirstChangedOffset();
-            B signalOffset = PREAMBLE_BYTES + SFD_BYTES + pkOffset;
-            simtime_t timePosition = calculateDuration(PREAMBLE_BYTES + SFD_BYTES + pkOffset, curTx->getBitrate());
+            auto req = newPacket->getTag<PreemptionModifyReq>();
+            b signalFirstChangedBitPosition = PREAMBLE_BYTES + SFD_BYTES + req->getFirstChangedOffset();
+            simtime_t timePosition = calculateDuration(signalFirstChangedBitPosition, curTx->getBitrate());
             if (curTxStartTime + timePosition < simTime())
                 throw cRuntimeError("CMD_MODIFY_CURRENT_PREEMPTABLE message arrived too later");
 
-            newPacket->setKind(type == SMD_Sx ? CMD_SEND_PREEMPTABLE : CMD_SEND_CONTINUED_PREEMPTABLE);
-            auto newSignal = encapsulate(newPacket);
-            //FIXME at curTxStartTime + timePosition:
-            sendPacketProgress(newSignal, physOutGate, newSignal->getDuration(), b(pkOffset).get(), timePosition);
-            curTx = newSignal;
+            simtime_t scheduleTo = curTxStartTime + timePosition;
+            newPacket->setKind(MODIFYTRANSMISSION);
+            if (scheduledTxModifier != nullptr) {
+                ASSERT(scheduledTxModifier->isScheduled());
+                if (scheduleTo > scheduledTxModifier->getArrivalTime())
+                    scheduleTo = scheduledTxModifier->getArrivalTime();
+                cancelAndDelete(scheduledTxModifier);
+            }
+            scheduleAt(scheduleTo, newPacket);
+            scheduledTxModifier = newPacket;
             return;
         }
     }
     throw cRuntimeError("current Tx EthernetSignal doesn't preemptable");
+}
+
+void EtherPhy::modifyTxProgress(cMessage *message)
+{
+    ASSERT(scheduledTxModifier == message);
+    scheduledTxModifier = nullptr;
+    auto newPacket = check_and_cast<Packet *>(message);
+    auto req = newPacket->removeTag<PreemptionModifyReq>();
+    b signalFirstChangedBitPosition = PREAMBLE_BYTES + SFD_BYTES + req->getFirstChangedOffset();
+    simtime_t timePosition = calculateDuration(signalFirstChangedBitPosition, curTx->getBitrate());
+    ASSERT(curTxStartTime + timePosition == simTime());
+
+    auto oldPacket = curTx->decapsulate();
+
+    curTx->encapsulate(newPacket);
+    auto duration = calculateDuration(curTx);
+    sendPacketProgress(curTx, physOutGate, duration, signalFirstChangedBitPosition.get(), timePosition);
+
+    //FIXME when will be deleted the oldPacket?
 }
 
 bool EtherPhy::checkConnected()
@@ -335,23 +368,18 @@ void EtherPhy::handleDisconnected()
 EthernetSignal *EtherPhy::encapsulate(Packet *packet)
 {
     auto phyHeader = makeShared<EthernetPhyHeader>();
+    PreemptionReq *req = nullptr;
     switch (packet->getKind()) {
-        case CMD_SEND:
+        case ETH_CMD_SEND:
             phyHeader->setType(SFD);
             break;
-        case CMD_SEND_EXPRESS:
-            phyHeader->setType(SMD_E);
+        case ETH_CMD_SEND_PREEMPTABLE:
+            req = packet->removeTag<PreemptionReq>();
+            phyHeader->setType(req->isFirst() ? SMD_Sx : SMD_Cx);
+            phyHeader->setFragId(req->getFragId());
+            phyHeader->setFragCount(req->getFragCount());
             break;
-        case CMD_SEND_PREEMPTABLE:
-            phyHeader->setType(SMD_Sx);
-            break;
-        case CMD_SEND_CONTINUED_PREEMPTABLE: {
-            phyHeader->setType(SMD_Cx);
-            auto fragCount = check_and_cast<PreemptableFragmentCtrlInfo*>(packet->getControlInfo())->getFragCount();
-            phyHeader->setFragCount(fragCount);
-            break;
-        }
-        case CMD_MODIFY_CURRENT_PREEMPTABLE:
+        case ETH_CMD_MODIFY_CURRENT_PREEMPTABLE:
             throw cRuntimeError("Model Error");
         default:
             throw cRuntimeError("Invalid message kind: %d", packet->getKind());
@@ -424,6 +452,13 @@ Packet *EtherPhy::decapsulate(EthernetSignal *signal)
     auto packet = check_and_cast<Packet *>(signal->decapsulate());
     delete signal;
     auto phyHeader = packet->popAtFront<EthernetPhyHeader>();
+
+
+    //FIXME
+    // add PreemptionInd if needed, set kind to EtherPhyIndCode
+
+
+
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&Protocol::ethernetMac);
     return packet;
 }

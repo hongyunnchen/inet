@@ -13,35 +13,62 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
 
-import inet.physicallayer.ieee80211.mode.IIeee80211Mode;
-import inet.physicallayer.ieee80211.mode.Ieee80211Channel;
-
-cplusplus {{
-}}
+import inet.common.TagBase;
+import inet.common.Units;
 
 namespace inet::physicallayer;
 
 enum EtherPhyCommand {
-        CMD_SEND = 101;                         // send SFD; error, ha van küldés folyamatban
-        CMD_SEND_EXPRESS = 102;                 // send SMD-E; error, ha van küldés folyamatban
-        CMD_SEND_PREEMPTABLE = 103;             // send SMD-Sx; error, ha van küldés folyamatban
-        CMD_MODIFY_CURRENT_PREEMPTABLE = 104;   // módosítja az éppen küldés alatt álló csomagot
-                                                // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
-                                                // param: offset of first changed byte
-        CMD_SEND_CONTINUED_PREEMPTABLE = 105;   // send SMD-Cx, a folytatás csomag küldése,
-                                                // param: Frag Count
-                                                // error, ha van küldés folyamatban
+        ETH_CMD_SEND = 101;                         // send SFD / SMD-E (these are equals); error, ha van küldés folyamatban
+                                                    // param: -
+        ETH_CMD_SEND_PREEMPTABLE = 102;             // send SMD-Sx / SMD-Cx (depends on isFirst); error, ha van küldés folyamatban
+                                                    // param: fragId, fragCount, isFirst
+        ETH_CMD_MODIFY_CURRENT_PREEMPTABLE = 103;   // módosítja az éppen küldés alatt álló csomagot
+                                                    // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
+                                                    // param: (fragId, fragCount, isFirst), firstChangedOffset
+        // ETH_CMD_SEND_PREEMPTION_VERIFY = 105;       // send SMD-Verify
+                                                    // param: -
+                                                    // error, ha van küldés folyamatban
+        // ETH_CMD_SEND_PREEMPTION_RESPONSE = 106;     // send SMD-Response
+                                                    // param: -
+                                                    // error, ha van küldés folyamatban
         // CMD_SEND_JAM,
         // CMD_SEND_FILLED_IFG,
 };
 
-class PreemptableModifierCtrlInfo extends cObject
-{
-    B firstChangedOffset;
+enum EtherPhyIndCode {
+        ETH_IND_RECV = 201;                         // received SFD / SMD-E (these are equals);
+        ETH_IND_RECV_PREEMPTABLE = 202;             // received SMD-Sx / SMD-Cx
+                                                    // info: fragId, fragCount, isFirst, isLast
+        // ETH_IND_RECV_PREEMPTION_VERIFY = 205;       // received SMD-Verify
+        // ETH_IND_RECV_PREEMPTION_RESPONSE = 206;     // received SMD-Response
+        // ETH_IND_RECV_JAM,
+        // ETH_IND_RECV_FILLED_IFG,
 };
 
-class PreemptableFragmentCtrlInfo extends cObject
+//
+// This is an abstract base class that should not be directly added as a tag.
+//
+class PreemptionTagBase extends TagBase
 {
-    int fragCount;
+    short fragId = 0;   // modulo 4
+    short fragCount = 0;   // modulo 4
+    bool isFirst = true;
+}
+
+//
+class PreemptionReq extends PreemptionTagBase
+{
+}
+
+class PreemptionModifyReq extends PreemptionReq
+{
+    B firstChangedOffset;
+}
+
+//
+class PreemptionInd extends PreemptionTagBase
+{
+    bool isLast = true;
 }
 

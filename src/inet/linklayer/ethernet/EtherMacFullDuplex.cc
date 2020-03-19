@@ -103,7 +103,7 @@ void EtherMacFullDuplex::startFrameTransmission()
     *newPacketProtocolTag = *oldPacketProtocolTag;
     delete oldPacketProtocolTag;
 
-    frame->setKind(physicallayer::CMD_SEND);   //TODO or CMD_SEND_EXPRESS, CMD_SEND_PREEMPTABLE, ...
+    frame->setKind(physicallayer::ETH_CMD_SEND);   //TODO or CMD_SEND_PREEMPTABLE, ...
 
     EV_INFO << "Transmission of " << frame << " started.\n";
     if (sendRawBytes) {
