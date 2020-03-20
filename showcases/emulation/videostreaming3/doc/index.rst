@@ -53,7 +53,7 @@ The lower part of this interface is present in the simulation, and uses TAP inte
 
 .. **V2.3** The lower part of this interface is present in the simulation, and uses TAP interfaces in the host OS to connect the host OS and the simulation, i.e. send and receive packets to and from the upper layers of the host OS.
 
-Note that the real and simulated parts can be separated at other levels of the protocol stack, using other, suitable EXT interface modules, such as **TODO**.
+Note that the real and simulated parts can be separated at other levels of the protocol stack, using other, suitable EXT interface modules, such as at the transport layer (:ned:`ExtLowerUdp`), and the network layer (:ned:`ExtUpperIpv4`, :ned:`ExtLowerIpv4`).
 
 .. **V1** Note that the in reality, the real parts of the sender and receiver hosts are the same machine, as both use the protocol stack of the host OS:
 
@@ -71,7 +71,7 @@ The network for the simulation is the following:
    :align: center
 
 .. figure:: media/Network2.png
-   :width: 80%
+   :width: 90%
    :align: center
 
 .. It contains two :ned:`StandardHost`'s, which are connected by switches (:ned:`EtherSwitch`) to a :ned:`Router`.
@@ -175,3 +175,34 @@ Also, the CRC and FCS need to be set to ``computed`` to properly serialize/deser
   - set up NAT
   - and ip addresses in the network
   - cos we'll use that to send the video file -> its needed so that the packets get into the simulation/simulated network
+
+Running
+-------
+
+Before running the emulation scenario, run ``setenv`` in the `omnetpp` and `inet` directories,
+and run the ``setup.sh`` script in the showcase's folder:
+
+.. code-block:: bash
+
+  $ cd ~/workspace/omnetpp
+  $ . setenv
+  $ cd ~/workspace/inet
+  $ . setenv
+  $ cd showcases/emulation/videostreaming
+  $ ./setup.sh
+
+To start the simulation and the VLC instances, run the ``run.sh`` script:
+
+.. code-block:: bash
+
+  $ ./run.sh
+
+The script starts the simulation, and the video plays. Its not very high quality TODO
+
+TODO wireshark
+
+.. figure:: media/wireshark.png
+   :width: 100%
+   :align: center
+
+TODO the video is downscaled/the quality is not the original because performance reasons

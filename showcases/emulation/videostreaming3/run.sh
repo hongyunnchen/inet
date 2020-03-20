@@ -5,7 +5,7 @@ cvlc RickAstley.mkv --sout '#transcode{vcodec=h264,acodec=mpga,vb=125k,ab=64k,de
 vlc rtp://192.168.3.20:4004 &
 
 # start simulation
-inet_dbg -u Cmdenv -f omnetpp.ini
+inet -u Cmdenv -f omnetpp.ini
 
 # kill child processes
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
