@@ -66,6 +66,12 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
         MODIFYTRANSMISSION,
     };
 
+    enum FcsCheckResult {
+        FCS_OK,
+        MCRC_OK,
+        FCS_BAD
+    };
+
     const char *displayStringTextFormat = nullptr;
     InterfaceEntry *interfaceEntry = nullptr;   // NIC module
     cChannel *rxTransmissionChannel = nullptr;    // rx transmission channel
@@ -119,6 +125,7 @@ class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
     virtual void receivePacketProgress(cPacket *packet, int bitPosition, simtime_t timePosition, int extraProcessableBitLength, simtime_t extraProcessableDuration) override;
     virtual void receivePacketEnd(cPacket *packet) override;
 
+    FcsCheckResult verifyFcs(Packet *packet);
     Packet *decapsulate(EthernetSignal *signal);
     virtual void startRx(EthernetSignalBase *signal);
     virtual void endRx(EthernetSignalBase *signal);

@@ -102,7 +102,7 @@ enum EthernetPreambleType {
 class EthernetPhyHeader extends FieldsChunk
 {
     chunkLength = PREAMBLE_BYTES + SFD_BYTES;
-    EthernetPreambleType type = SFD;
+    EthernetPreambleType preambleType = SFD;
     short fragId = 0;       // 0-3, coded in SMD_Sx or SMD_Cx
     short fragCount = 0;    // 0-3 (modulo 4), coded values: 0xE6, 0x4C, 0x7F and 0xB3
 }

@@ -17,9 +17,11 @@
 
 #include "inet/common/ModuleAccess.h"
 #include "inet/common/ProtocolTag_m.h"
+#include "inet/common/checksum/EthernetCRC.h"
 #include "inet/common/lifecycle/ModuleOperations.h"
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/packet/Packet.h"
+#include "inet/linklayer/ethernet/EtherFrame_m.h"
 #include "inet/linklayer/ethernet/EtherPhyFrame_m.h"
 #include "inet/physicallayer/contract/ethernet/EtherPhyCmd_m.h"
 #include "inet/physicallayer/ethernet/EtherPhy.h"
@@ -213,7 +215,7 @@ void EtherPhy::modifyCurrentPreemptableTx(cMessage *message)
     if (auto signal = dynamic_cast<EthernetSignal*>(curTx)) {
         auto oldPacket = check_and_cast<Packet*>(signal->getEncapsulatedPacket());
         const auto& phyHeader = oldPacket->peekAtFront<EthernetPhyHeader>();
-        auto type = phyHeader->getType();
+        auto type = phyHeader->getPreambleType();
         if (type == SMD_Sx || type == SMD_Cx) {
             auto newPacket = check_and_cast<Packet *>(message);
             auto req = newPacket->getTag<PreemptionModifyReq>();
@@ -249,12 +251,11 @@ void EtherPhy::modifyTxProgress(cMessage *message)
     ASSERT(curTxStartTime + timePosition == simTime());
 
     auto oldPacket = curTx->decapsulate();
+    //FIXME when will be deleted the oldPacket?
 
     curTx->encapsulate(newPacket);
     auto duration = calculateDuration(curTx);
     sendPacketProgress(curTx, physOutGate, duration, signalFirstChangedBitPosition.get(), timePosition);
-
-    //FIXME when will be deleted the oldPacket?
 }
 
 bool EtherPhy::checkConnected()
@@ -371,11 +372,11 @@ EthernetSignal *EtherPhy::encapsulate(Packet *packet)
     PreemptionReq *req = nullptr;
     switch (packet->getKind()) {
         case ETH_CMD_SEND:
-            phyHeader->setType(SFD);
+            phyHeader->setPreambleType(SFD);
             break;
         case ETH_CMD_SEND_PREEMPTABLE:
             req = packet->removeTag<PreemptionReq>();
-            phyHeader->setType(req->isFirst() ? SMD_Sx : SMD_Cx);
+            phyHeader->setPreambleType(req->isFirst() ? SMD_Sx : SMD_Cx);
             phyHeader->setFragId(req->getFragId());
             phyHeader->setFragCount(req->getFragCount());
             break;
@@ -447,18 +448,84 @@ void EtherPhy::abortTx()
     }
 }
 
+EtherPhy::FcsCheckResult EtherPhy::verifyFcs(Packet *packet)
+{
+    EV_STATICCONTEXT;
+
+    const auto& ethTrailer = packet->peekAtBack<EthernetFcs>(ETHER_FCS_BYTES);          //FIXME can I use any flags?
+
+    switch(ethTrailer->getFcsMode()) {
+        case FCS_DECLARED_CORRECT:
+            return ethTrailer->getFcs() == 0x0000FFFFL ? MCRC_OK : FCS_OK;
+        case FCS_DECLARED_INCORRECT:
+            EV_ERROR << "incorrect FCS in ethernet frame\n";
+            return FCS_BAD;
+        case FCS_COMPUTED: {
+            // check the FCS
+            auto ethBytes = packet->peekDataAt<BytesChunk>(B(0), packet->getDataLength() - ethTrailer->getChunkLength());
+            auto bufferLength = B(ethBytes->getChunkLength()).get();
+            auto buffer = new uint8_t[bufferLength];
+            // 1. fill in the data
+            ethBytes->copyToBuffer(buffer, bufferLength);
+            // 2. compute the FCS
+            auto computedFcs = ethernetCRC(buffer, bufferLength);
+            delete [] buffer;
+            if (computedFcs == ethTrailer->getFcs())
+                return FCS_OK;
+            if ((computedFcs ^ 0x0000FFFFL) == ethTrailer->getFcs())
+                return MCRC_OK;
+            return FCS_BAD;
+        }
+        default:
+            throw cRuntimeError("invalid FCS mode in ethernet frame");
+    }
+}
+
 Packet *EtherPhy::decapsulate(EthernetSignal *signal)
 {
     auto packet = check_and_cast<Packet *>(signal->decapsulate());
     delete signal;
     auto phyHeader = packet->popAtFront<EthernetPhyHeader>();
+    auto fcsCheckResult = verifyFcs(packet);
+    if (fcsCheckResult == FCS_BAD) {
+        //TODO drop packet
+        delete packet;
+        return nullptr;
+    }
 
+    short int kind = 0;
+    switch (phyHeader->getPreambleType()) {
+        case SFD: // or SMD_E
+            kind = ETH_IND_RECV;
+            break;
+        case SMD_Verify:
+            kind = ETH_IND_RECV_PREEMPTION_VERIFY;
+            break;
+        case SMD_Respond:
+            kind = ETH_IND_RECV_PREEMPTION_RESPONSE;
+            break;
+        case SMD_Cx:
+        case SMD_Sx: {
+            auto ind = packet->addTag<PreemptionInd>();
+            ind->setIsFirst(phyHeader->getPreambleType() == SMD_Sx);
+            ind->setIsLast(true);   //FIXME get from CRC
+            ind->setFragId(phyHeader->getFragId());
+            ind->setFragCount(phyHeader->getFragCount());
+            kind = ETH_IND_RECV_PREEMPTABLE;
+            break;
+        }
+        default:
+            //TODO error
+            //TODO drop packet
+            delete packet;
+            return nullptr;
+    }
 
     //FIXME
     // add PreemptionInd if needed, set kind to EtherPhyIndCode
 
 
-
+    packet->setKind(kind);
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&Protocol::ethernetMac);
     return packet;
 }
@@ -481,8 +548,8 @@ void EtherPhy::endRx(EthernetSignalBase *signal)
         ; //TODO
 
     if (rxState == RX_RECEIVING_STATE) {
-        auto packet = decapsulate(check_and_cast<EthernetSignal*>(signal));
-        send(packet, "upperLayerOut");
+        if (auto packet = decapsulate(check_and_cast<EthernetSignal*>(signal)))
+            send(packet, "upperLayerOut");
         changeRxState(RX_IDLE_STATE);
     }
     else {

@@ -26,10 +26,10 @@ enum EtherPhyCommand {
         ETH_CMD_MODIFY_CURRENT_PREEMPTABLE = 103;   // módosítja az éppen küldés alatt álló csomagot
                                                     // error, ha a megadott bit offset változási pozíción már túljutott a küldés vagy ha nincs küldés folyamatban
                                                     // param: (fragId, fragCount, isFirst), firstChangedOffset
-        // ETH_CMD_SEND_PREEMPTION_VERIFY = 105;       // send SMD-Verify
+        ETH_CMD_SEND_PREEMPTION_VERIFY = 105;       // send SMD-Verify
                                                     // param: -
                                                     // error, ha van küldés folyamatban
-        // ETH_CMD_SEND_PREEMPTION_RESPONSE = 106;     // send SMD-Response
+        ETH_CMD_SEND_PREEMPTION_RESPONSE = 106;     // send SMD-Response
                                                     // param: -
                                                     // error, ha van küldés folyamatban
         // CMD_SEND_JAM,
@@ -40,8 +40,8 @@ enum EtherPhyIndCode {
         ETH_IND_RECV = 201;                         // received SFD / SMD-E (these are equals);
         ETH_IND_RECV_PREEMPTABLE = 202;             // received SMD-Sx / SMD-Cx
                                                     // info: fragId, fragCount, isFirst, isLast
-        // ETH_IND_RECV_PREEMPTION_VERIFY = 205;       // received SMD-Verify
-        // ETH_IND_RECV_PREEMPTION_RESPONSE = 206;     // received SMD-Response
+        ETH_IND_RECV_PREEMPTION_VERIFY = 205;       // received SMD-Verify
+        ETH_IND_RECV_PREEMPTION_RESPONSE = 206;     // received SMD-Response
         // ETH_IND_RECV_JAM,
         // ETH_IND_RECV_FILLED_IFG,
 };
