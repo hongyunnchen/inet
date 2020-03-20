@@ -274,13 +274,16 @@ for both the main and the per-node figures. With less detail, the figure becomes
 pixelated; with more detail, even if the canvas is zoomed in, the figure still doesn't
 become pixelated.
 
-The power density map feature can either use sampling to calculate the heatmap, i.e.
-sample the power density at various points in space, or calculate and draw the power
-density using the interpolation of the partitioning of the original multidimensional
-power density function. The latter requires more computing power but it's more accurate;
-the former can lead to loss of detail due to undersampling in some corner cases.
-This feature is controlled by the :par:`powerDensityMapSampling` parameter which
-pertains both to the main and the per-node figures; ``true`` by default.
+The power density map feature can calculate the heatmap in three modes, controlled by the :par:`PowerDensityMapPixelMode` parameter: 
+
+- ``sampling``: Use sampling to calculate the heatmap, i.e. sample the power density at the center of each pixel 
+- ``partition``: Calculate and draw the power density using the interpolation of the partitioning of the original multidimensional power density function
+- ``mean``: Calculate and draw the mean of the power density on each pixel
+
+Sampling is the fastest, but it can lead to loss of detail due to undersampling in some corner cases. Partition is slower and more accurate; it paints coherent pixel areas, potentially painting the same pixel several times, leading to inaccurate pixel colors.
+Mean is the slowest, but the most accurate. Note that the :par:`powerDensityMapPixelMode` parameter
+pertains both to the main and the per-node figures; ``mean`` by default.
+Similarly, the spectrogram figure has the :par:`SpectrogramPixelMode` parameter.
 
 .. note:: The power density map feature is very CPU-intensive but the visualization can use multiple CPU cores.
 
