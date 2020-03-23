@@ -40,7 +40,7 @@ namespace physicallayer {
  * how to change Mac module the outgoing cPacket: abort now; for preemption; JAM, ... ?
  */
 
-class INET_API EtherPhy : public cPhyModule, public cListener, public ILifecycle
+class INET_API EtherPhy : public cSimpleModule, public cListener, public ILifecycle
 {
   public:
     enum TxState : short{

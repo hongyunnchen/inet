@@ -67,7 +67,6 @@ EtherPhy::~EtherPhy()
 
 void EtherPhy::initialize(int stage)
 {
-    cPhyModule::initialize(stage);
     if (stage == INITSTAGE_LOCAL) {
         physInGate = gate("phys$i");
         physOutGate = gate("phys$o");
