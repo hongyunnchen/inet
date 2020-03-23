@@ -62,6 +62,10 @@ In reality, the real parts of the sender and receiver hosts are the same machine
 
 **TODO** schematic
 
+.. figure:: media/actualsetup.png
+   :width: 50%
+   :align: center
+
 We'll use a VLC instance in the sender host to stream a video file. The packets travel down the host os protocol stack and enter the simulation at the Ethernet interface. Then they traverse the simulated network, enter the receiver host's Ethernet interface, and are injected into the host os protocol stack, and travel up to another VLC instance which plays the video.
 
 The network for the simulation is the following:
